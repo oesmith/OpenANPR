@@ -40,8 +40,7 @@ def main():
 		img3 = cvCreateImage(cvGetSize(img), IPL_DEPTH_16S, 1)
 		img4 = cvCreateImage(cvGetSize(img), IPL_DEPTH_8U, 1)
 		cvCvtColor(img, img2, CV_BGR2GRAY)
-		cvEqualizeHist(img2, img2)
-		cvSmooth(img2, img21)
+		cvEqualizeHist(img2, img21)
 		stor = cvCreateMemStorage(0)
 		while cvWaitKey(15) != chr(27):
 			cvThreshold(img21, img4, val1, 255, CV_THRESH_BINARY)

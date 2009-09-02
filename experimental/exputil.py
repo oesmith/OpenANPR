@@ -22,6 +22,21 @@ def quick_show(image):
 	cv.WaitKey(0)
 	cv.DestroyWindow("foo")
 
+def max_contrast(image):
+	"""Maximise the contrast on the image using top and bottom hat filters.
+	"""
+	size = cv.GetSize(image)
+	bh = cv.CreateImage(size, cv.IPL_DEPTH_8U, 1)
+	th = cv.CreateImage(size, cv.IPL_DEPTH_8U, 1)
+	s1 = cv.CreateImage(size, cv.IPL_DEPTH_8U, 1)
+	s2 = cv.CreateImage(size, cv.IPL_DEPTH_8U, 1)
+	el = cv.CreateStructuringElementEx(3, 3, 1, 1, cv.CV_SHAPE_ELLIPSE)
+	cv.MorphologyEx(image, th, None, el, cv.CV_MOP_TOPHAT, 1)
+	cv.MorphologyEx(image, bh, None, el, cv.CV_MOP_BLACKHAT, 1)
+	cv.Add(image, th, s1)
+	cv.Sub(s1, bh, s2)
+	return s2
+		
 def prepare_image(filename, invert=False):
 	"""Prepare an image file for processing.
 

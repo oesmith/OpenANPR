@@ -61,3 +61,17 @@ def prepare_image(filename, invert=False):
 			ret = eq_grey
 	return ret
 
+def extract_v(image):
+	size = cv.GetSize(image)
+	hsv = cv.CreateImage(size, cv.IPL_DEPTH_8U, 3)
+	v = cv.CreateImage(size, cv.IPL_DEPTH_8U, 1)
+	cv.CvtColor(image, hsv, cv.CV_RGB2HSV)
+	cv.SetImageCOI(hsv, 3)
+	cv.Copy(hsv, v)
+	return v
+
+def greyscale(image):
+	grey = cv.CreateImage((image.width,image.height), cv.IPL_DEPTH_8U, 1)
+	cv.CvtColor(image, grey, cv.CV_BGR2GRAY)
+	return grey
+

@@ -48,11 +48,9 @@ def prepare_image(filename, invert=False):
 	size = cv.GetSize(image)
 	if image:
 		# convert to greyscale
-		grey = cv.CreateImage(size, cv.IPL_DEPTH_8U, 1)
-		cv.CvtColor(image, grey, cv.CV_BGR2GRAY)
+		grey = extract_v(image)
 		# maximise contrast
-		eq_grey = cv.CreateImage(size, cv.IPL_DEPTH_8U, 1)
-		cv.EqualizeHist(grey, eq_grey)
+		eq_grey = max_contrast(grey)
 		# (optionally) invert
 		if invert:
 			ret = cv.CreateImage(size, cv.IPL_DEPTH_8U, 1)

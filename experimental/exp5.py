@@ -19,6 +19,32 @@ import cv
 from exputil import *
 from connected import *
 
+class Box(object):
+	def __init__(self, x1, y1, x2, y2):
+		self.x1 = x1
+		self.y1 = y1
+		self.x2 = x2
+		self.y2 = y2
+		self.w = self.x2 - self.x1
+		self.h = self.y2 - self.y1
+		self.a = self.w / self.h
+		self.cx = (self.x1 + self.x2) / 2
+		self.cy = (self.y1 + self.y2) / 2
+	
+	def overlaps(self, o):
+		return( id(self) != id(o) and
+		        self.x1 <= o.x2 and self.y1 <= o.y2 and 
+		        self.x2 > o.x1 and self.y2 > o.y1 )
+	
+	def dist_to(self, o):
+		x = self.cx - o.cx
+		y = self.cy - o.cy
+		return math.sqrt(x*x + y*y)
+	
+	def similar_to(self, o):
+		return (abs(self.w-o.w) < 4 or
+			abs(self.h-o.h) < 4)
+
 def syntax():
 	"""Print the command line syntax."""
 	msgs = [
@@ -38,25 +64,11 @@ def validate_contour(c):
 	a = dx*dy
 	i = float(len(c))/a
 	g = 0.3
-	if (len(c)>8 and a>20 and dy>10 and dy<50 and dx<50 and 
+	if (len(c)>8 and a>20 and dy>8 and dy<50 and dx<50 and 
 			d>0.125 and d<8 and i>0.02):
-		return (x_min-dx*g, y_min-dy*g, x_max+dx*g, y_max+dy*g)
+		return Box(x_min, y_min, x_max, y_max)
 	else:
 		return None
-
-def overlaps(a, b):
-	# return true if two bboxes overlap
-	if id(a) == id(b):
-		return False
-	else:
-		day = a[3] - a[1]
-		dax = a[2] - a[0]
-		dby = b[3] - b[1]
-		dbx = b[2] - b[0]
-		return(a[0] <= b[2] and a[1] <= b[3] and 
-		       a[2] > b[0] and a[3] > b[1] and 
-		       (day >= dby*.9 and day <= dby*1.1 or
-		       dax >= dbx*.9 and dax <= dbx*1.1) )
 
 def find_overlap(candidate, bboxes):
 	# return true if bbox candidate overlaps another bbox in list bboxes
@@ -64,7 +76,44 @@ def find_overlap(candidate, bboxes):
 		if overlaps(candidate, bbox):
 			return True
 	return False
+	
 
+def fit_line(line, first, second):
+	x1, y1 = line[0:2]
+	d = first.dist_to(second)
+	x2 = (second.cx - first.cx)/d
+	y2 = (second.cy - first.cy)/d
+	dp = x1*x2 + y1*y2
+	a = math.acos(dp)
+	if abs(a) > math.pi/2.0:
+		a = math.pi - abs(a)
+	return a < math.pi/36.0
+
+def cluster_fuck(bboxes):
+	clusters = []
+	for i in bboxes:
+		line = None
+		cluster = set((i,))
+		nb = [(b, i.dist_to(b)) for b in bboxes if b != i and i.similar_to(b)]
+		nb.sort(cmp=lambda x,y: cmp(x[1],y[1]))
+		for b,d in nb:
+			dists = [j.dist_to(b) for j in cluster]
+			if min(dists) < math.sqrt(b.w*b.w+b.h*b.h)*1.6:
+				if line is None or fit_line(line, i, b):
+					cluster.add(b)
+					d = i.dist_to(b)
+					if line is None and d != 0.0:
+						line = ((b.cx-i.cx)/d, (b.cy-i.cy)/d)
+		if len(cluster)>3:
+			# TODO: line fitting?
+			clusters.append(cluster)
+	clusters.sort(cmp=lambda x,y: cmp(len(x),len(y)))
+	if len(clusters):
+		return [clusters[-1]] + cluster_fuck(bboxes.difference(clusters[-1]))
+	else:
+		return []
+	
+	
 def main():
 	"""Parse the command line and set off processing."""
 	# parse command line
@@ -93,12 +142,10 @@ def main():
 	# remove them - removes number plate edges to ensure that characters 
 	# don't join with the edges of the plate
 	storage = cv.CreateMemStorage()
-	lines = cv.HoughLines2(thresholded, storage, cv.CV_HOUGH_PROBABILISTIC,
-	                       1, math.pi/180, 50, 50, 2)
-	for line in lines:
-		cv.Line(thresholded, line[0], line[1], 0, 3, 4)
-	#quick_show(th)
-	#return
+	#lines = cv.HoughLines2(thresholded, storage, cv.CV_HOUGH_PROBABILISTIC,
+	#                       1, math.pi/180, 50, 50, 2)
+	#for line in lines:
+	#	cv.Line(thresholded, line[0], line[1], 0, 3, 4)
 	# grab the contours from the image
 	cont = cv.FindContours(thresholded,
 		storage,
@@ -112,17 +159,19 @@ def main():
 		if v is not None:
 			validated.append(v)
 		cont = cont.h_next()
-	overlapping = []
-	for v in validated:
-		if find_overlap(v, validated):
-			overlapping.append(v)
 	# overlay bounding boxes of 'good' contours on the original image
-	print len(overlapping)
 	result = cv.LoadImage(args[0])
-	for bbox in overlapping:
-		cv.Rectangle(result, (int(bbox[0]),int(bbox[1])), 
-			(int(bbox[2]), int(bbox[3])), (255,0,0))
-	quick_show(result)
+	clusters = cluster_fuck(set(validated))
+	for cluster in clusters:
+		cv.Rectangle(result, 
+			(int(min([c.x1 for c in cluster])), 
+			 int(min([c.y1 for c in cluster]))),
+			(int(max([c.x2 for c in cluster])), 
+			 int(max([c.y2 for c in cluster]))), 
+			(0,0,255))
+		for bbox in cluster:
+			cv.Rectangle(result, (int(bbox.x1),int(bbox.y1)), 
+				(int(bbox.x2), int(bbox.y2)), (255,0,0))
 
 
 if __name__ == '__main__':

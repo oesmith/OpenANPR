@@ -15,7 +15,7 @@ SMOOTH_FILTER_SIZE = 5
 ADAPTIVE_THRESH_BLOCK_SIZE = 19
 ADAPTIVE_THRESH_WEIGHT = 9
 
-def preprocess(image):
+def preprocess(image, otsu_thresh=False):
 	"""Pre-process an image ready for character contour detection."""
 	size = cv.GetSize(image)
 	# convert to single channel
@@ -28,9 +28,13 @@ def preprocess(image):
 	# adaptive thresholding finds the letters against the numberplate
 	# background
 	thresholded = cv.CreateImage(size, cv.IPL_DEPTH_8U, 1)
-	cv.AdaptiveThreshold(smoothed, thresholded, 255, 
-		cv.CV_ADAPTIVE_THRESH_GAUSSIAN_C, cv.CV_THRESH_BINARY_INV, 
-		ADAPTIVE_THRESH_BLOCK_SIZE, ADAPTIVE_THRESH_WEIGHT)
+	if otsu_thresh:
+		cv.Threshold(smoothed, thresholded, 0, 255, 
+			cv.CV_THRESH_BINARY_INV | cv.CV_THRESH_OTSU)
+	else:
+		cv.AdaptiveThreshold(smoothed, thresholded, 255, 
+			cv.CV_ADAPTIVE_THRESH_GAUSSIAN_C, cv.CV_THRESH_BINARY_INV, 
+			ADAPTIVE_THRESH_BLOCK_SIZE, ADAPTIVE_THRESH_WEIGHT)
 	return grey, thresholded
 
 
@@ -59,3 +63,8 @@ def extract_v(image):
 	cv.Copy(hsv, v)
 	return v
 
+def greyscale(image):
+	grey = cv.CreateImage((image.width,image.height), cv.IPL_DEPTH_8U, 1)
+	cv.CvtColor(image, grey, cv.CV_RGB2GRAY)
+	return grey
+		

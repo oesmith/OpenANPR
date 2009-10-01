@@ -20,5 +20,5 @@ counter = 0
 for f in ['30082009_007.jpg']:
 	image = cv.LoadImage('data/examples/'+f)
 	for plate in anpr.detect_plates(image):
-		cv.SaveImage('output%02d.jpg' % counter, plate)
+		cv.SaveImage('output%02d.png' % counter, plate)
 		counter = counter+1

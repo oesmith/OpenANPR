@@ -20,7 +20,7 @@ from exputil import *
 from connected import *
 
 class Box(object):
-	def __init__(self, x1, y1, x2, y2):
+	def __init__(self, image, x1, y1, x2, y2):
 		self.x1 = x1
 		self.y1 = y1
 		self.x2 = x2
@@ -30,6 +30,14 @@ class Box(object):
 		self.a = self.w / self.h
 		self.cx = (self.x1 + self.x2) / 2
 		self.cy = (self.y1 + self.y2) / 2
+		cv.SetImageROI(image, (self.x1, self.y1, self.w, self.h))
+		#self.hist = cv.CreateHist ([16], cv.CV_HIST_ARRAY, [[0,256]])
+		#cv.CalcHist([image], self.hist, 0)
+		#cv.NormalizeHist(self.hist, 100)
+		self.avg,self.sdv = cv.AvgSdv(image)
+		self.avg = self.avg[0]
+		self.sdv = self.sdv[0]
+		cv.ResetImageROI(image)
 	
 	def overlaps(self, o):
 		return( id(self) != id(o) and
@@ -42,8 +50,10 @@ class Box(object):
 		return math.sqrt(x*x + y*y)
 	
 	def similar_to(self, o):
-		return (abs(self.w-o.w) < 4 or
-			abs(self.h-o.h) < 4)
+		return (abs(self.w-o.w) < 8 and
+			abs(self.h-o.h) < 8 and 
+			(self.avg-o.avg)/self.avg < 0.3 and
+			(self.sdv-o.sdv)/self.sdv < 0.3)
 
 def syntax():
 	"""Print the command line syntax."""
@@ -53,7 +63,7 @@ def syntax():
 		"     -i  Invert the image (select dark objects)"]
 	print "\n".join(msgs)
 
-def validate_contour(c):
+def validate_contour(c,image):
 	x_min = min(pt[0] for pt in c)
 	x_max = max(pt[0] for pt in c)
 	y_min = min(pt[1] for pt in c)
@@ -66,7 +76,7 @@ def validate_contour(c):
 	g = 0.3
 	if (len(c)>8 and a>20 and dy>8 and dy<50 and dx<50 and 
 			d>0.125 and d<8 and i>0.02):
-		return Box(x_min, y_min, x_max, y_max)
+		return Box(image, x_min, y_min, x_max, y_max)
 	else:
 		return None
 
@@ -87,7 +97,7 @@ def fit_line(line, first, second):
 	a = math.acos(dp)
 	if abs(a) > math.pi/2.0:
 		a = math.pi - abs(a)
-	return a < math.pi/36.0
+	return a < math.pi/40.0
 
 def cluster_fuck(bboxes):
 	clusters = []
@@ -155,7 +165,7 @@ def main():
 	col = 128
 	validated = []
 	while cont:
-		v = validate_contour(cont)
+		v = validate_contour(cont,grey)
 		if v is not None:
 			validated.append(v)
 		cont = cont.h_next()
@@ -172,6 +182,7 @@ def main():
 		for bbox in cluster:
 			cv.Rectangle(result, (int(bbox.x1),int(bbox.y1)), 
 				(int(bbox.x2), int(bbox.y2)), (255,0,0))
+	quick_show(result)
 
 
 if __name__ == '__main__':

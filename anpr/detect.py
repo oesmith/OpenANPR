@@ -51,11 +51,12 @@ def extract_plate(image, cluster):
 	matrix = cv.CreateMat(2, 3, cv.CV_32FC1)
 	cx = (cluster[0].cx + cluster[-1].cx)/2.0
 	cy = (cluster[0].cy + cluster[-1].cy)/2.0
-	getattr(cv,'2DRotationMatrix')((cx,cy), angle*180.0/math.pi, 1, matrix)
+	cv.GetRotationMatrix2D((cx,cy), angle*180.0/math.pi, 1, matrix)
 	warp = cv.CreateImage(cv.GetSize(image), 
 		cv.IPL_DEPTH_8U, 3)
 	cv.WarpAffine(image, warp, matrix)
-	ret = cv.CreateImage((h+cluster[0].dia*3.0, cluster[0].dia*1.5), cv.IPL_DEPTH_8U, 3)
+	ret = cv.CreateImage((int(h+cluster[0].dia*3.0), int(cluster[0].dia*1.5)), 
+	    cv.IPL_DEPTH_8U, 3)
 	cv.GetRectSubPix(warp, ret, (cx,cy))
 	print cv.GetSize(ret)
 	return ret

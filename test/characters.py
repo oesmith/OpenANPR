@@ -34,10 +34,6 @@ for f in files:
 		baz = cv.CreateImage(cv.GetSize(plate), cv.IPL_DEPTH_8U, 1)
 		el = cv.CreateStructuringElementEx(1, 2, 0, 0, cv.CV_SHAPE_RECT)
 		cv.Erode(bar, baz, el)
-		#quick_show(plate)
-		#quick_show(segmented)
-		#quick_show(bar)
-		quick_show(baz)
 		for char in anpr.find_characters(foo, baz):
 			cv.Rectangle(plate, (int(char.x1),int(char.y1)), 
 				(int(char.x2), int(char.y2)), (255,0,0))
